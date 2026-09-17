@@ -16,6 +16,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var updater: AppUpdater!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // A menu-bar-only app has no normal windows, so AppKit may otherwise
+        // consider it eligible for automatic termination after launch.
+        ProcessInfo.processInfo.disableAutomaticTermination(
+            "Codex Account Switcher owns a persistent menu-bar status item"
+        )
+        ProcessInfo.processInfo.disableSuddenTermination()
+
         model = AppModel.live()
         updater = AppUpdater()
 
@@ -24,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusItem.isVisible = true
 
         if let button = statusItem.button {
+            button.isHidden = false
             button.image = makeStatusItemImage()
             button.image?.isTemplate = true
             button.imagePosition = .imageOnly
