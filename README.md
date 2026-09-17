@@ -52,6 +52,8 @@ This public fork keeps the upstream account and switching logic, but replaces th
 
 The local macOS bundle uses the separate identifier `com.didi.codex-account-switcher.local`, so it does not inherit the upstream menu-bar visibility state. It continues to use the existing local data directory at `~/Library/Application Support/Codex Account Switcher/`.
 
+The local fork also opens the account switcher in a normal titled main window at launch. Closing that window leaves the AppKit status item running, so it can be reopened from the menu bar without losing the background switcher process.
+
 Build and install the local macOS app with:
 
 ```bash

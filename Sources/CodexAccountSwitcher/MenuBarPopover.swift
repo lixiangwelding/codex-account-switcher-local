@@ -5,7 +5,14 @@ import SwiftUI
 struct MenuBarPopover: View {
     @ObservedObject var model: AppModel
     @ObservedObject var updater: AppUpdater
+    let width: CGFloat
     @State private var page: PopoverPage = .accounts
+
+    init(model: AppModel, updater: AppUpdater, width: CGFloat = 326) {
+        self.model = model
+        self.updater = updater
+        self.width = width
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -48,7 +55,8 @@ struct MenuBarPopover: View {
                 }
             }
         }
-        .frame(width: 326)
+        .frame(width: width)
+        .frame(maxHeight: .infinity, alignment: .top)
         .onAppear {
             page = .accounts
         }

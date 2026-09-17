@@ -9,9 +9,10 @@ import SwiftUI
 /// status item in AppKit gives this app an explicit, stable lifetime and lets
 /// the popover remain available even when the menu bar is being rearranged.
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var mainWindow: NSWindow!
     private var model: AppModel!
     private var updater: AppUpdater!
 
@@ -49,6 +50,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.contentViewController = NSHostingController(
             rootView: MenuBarPopover(model: model, updater: updater)
         )
+
+        createMainWindow()
+        showMainWindow()
+    }
+
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+        showMainWindow()
+        return true
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     @objc private func togglePopover(_ sender: AnyObject?) {
@@ -79,6 +95,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSBezierPath(ovalIn: NSRect(x: 2, y: 2, width: 14, height: 14)).fill()
         fallback.unlockFocus()
         return fallback
+    }
+
+    private func createMainWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 430, height: 620),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Codex Account Switcher"
+        window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: 380, height: 420)
+        window.contentViewController = NSHostingController(
+            rootView: MenuBarPopover(model: model, updater: updater, width: 430)
+        )
+        window.delegate = self
+        mainWindow = window
+    }
+
+    private func showMainWindow() {
+        guard let mainWindow else { return }
+        if !mainWindow.isVisible {
+            mainWindow.center()
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindow.makeKeyAndOrderFront(nil)
     }
 }
 
