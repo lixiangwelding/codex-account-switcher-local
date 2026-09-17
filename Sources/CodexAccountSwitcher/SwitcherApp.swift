@@ -2,93 +2,83 @@ import SwitcherCore
 import AppKit
 import SwiftUI
 
+/// AppKit-backed status item host.
+///
+/// macOS 26 can move a SwiftUI `MenuBarExtra` into Control Center's blocked
+/// list and then terminate the app when the item is removed.  Keeping the
+/// status item in AppKit gives this app an explicit, stable lifetime and lets
+/// the popover remain available even when the menu bar is being rearranged.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+    private var statusItem: NSStatusItem!
+    private var popover: NSPopover!
+    private var model: AppModel!
+    private var updater: AppUpdater!
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        model = AppModel.live()
+        updater = AppUpdater()
+
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.autosaveName = "CodexAccountSwitcherLocalStatusItem"
+        statusItem.isVisible = true
+
+        if let button = statusItem.button {
+            button.image = makeStatusItemImage()
+            button.image?.isTemplate = true
+            button.imagePosition = .imageOnly
+            button.toolTip = "Codex Account Switcher"
+            button.target = self
+            button.action = #selector(togglePopover(_:))
+            button.sendAction(on: [.leftMouseUp])
+        }
+
+        popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+        popover.contentSize = NSSize(width: 326, height: 440)
+        popover.contentViewController = NSHostingController(
+            rootView: MenuBarPopover(model: model, updater: updater)
+        )
+    }
+
+    @objc private func togglePopover(_ sender: AnyObject?) {
+        guard let button = statusItem.button else { return }
+
+        if popover.isShown {
+            popover.performClose(sender)
+            return
+        }
+
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
+    }
+
+    private func makeStatusItemImage() -> NSImage {
+        if let image = NSImage(
+            systemSymbolName: "person.crop.circle.fill",
+            accessibilityDescription: "Codex Account Switcher"
+        )?.withSymbolConfiguration(
+            NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+        ) {
+            return image
+        }
+
+        let fallback = NSImage(size: NSSize(width: 18, height: 18))
+        fallback.lockFocus()
+        NSColor.black.setFill()
+        NSBezierPath(ovalIn: NSRect(x: 2, y: 2, width: 14, height: 14)).fill()
+        fallback.unlockFocus()
+        return fallback
+    }
+}
+
 @main
 struct SwitcherApp: App {
-    @StateObject private var model = AppModel.live()
-    @StateObject private var updater = AppUpdater()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarPopover(model: model, updater: updater)
-        } label: {
-            HStack(spacing: 4) {
-                MenuBarLogo()
-                    .overlay(alignment: .topTrailing) {
-                        if updater.availableVersion != nil {
-                            Circle().fill(.blue).frame(width: 5, height: 5)
-                                .offset(x: 2, y: -1)
-                        }
-                    }
-                if model.settings.showsMenuBarPercentage,
-                   let remainingPercent = model.activeRemainingPercent {
-                    Text("\(remainingPercent)%")
-                        .monospacedDigit()
-                }
-            }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(menuBarAccessibilityLabel)
-                .task {
-                    updater.start()
-                    await model.startBackgroundUsageRefresh()
-                }
-                .onChange(of: model.isMutating || model.isAddingAccount) { _, busy in
-                    updater.accountOperationInProgress = busy
-                }
-        }
-        .menuBarExtraStyle(.window)
-        .commands {
-            QuitApplicationCommands(title: model.text("quit"))
-        }
-    }
-
-    private var menuBarAccessibilityLabel: String {
-        let updateStatus = updater.availableVersion.map { ", " + model.format("update_available", $0) } ?? ""
-        guard model.settings.showsMenuBarPercentage,
-              let remainingPercent = model.activeRemainingPercent
-        else {
-            return "Codex Account Switcher" + updateStatus
-        }
-        return "Codex Account Switcher, \(remainingPercent)%" + updateStatus
-    }
-}
-
-private struct MenuBarLogo: View {
-    private static let logicalSize = NSSize(width: 17.5, height: 17.5)
-
-    private static let image: NSImage = {
-        let resourceBundleName = "CodexAccountSwitcher_CodexAccountSwitcher.bundle"
-        let resourceBundle = [Bundle.main.resourceURL, Bundle.main.bundleURL]
-            .compactMap { $0 }
-            .map { $0.appending(path: resourceBundleName) }
-            .compactMap { Bundle(url: $0) }
-            .first
-        guard let url = resourceBundle?.url(
-            forResource: "account-switcher-logo",
-            withExtension: "png"
-        ), let image = NSImage(contentsOf: url) else {
-            preconditionFailure("Missing account-switcher-logo.png")
-        }
-        image.size = logicalSize
-        image.isTemplate = true
-        return image
-    }()
-
-    var body: some View {
-        Image(nsImage: Self.image)
-            .frame(width: 17.5, height: 17.5)
-            .accessibilityHidden(true)
-    }
-}
-
-private struct QuitApplicationCommands: Commands {
-    let title: String
-
-    var body: some Commands {
-        CommandGroup(replacing: .appTermination) {
-            Button(title) {
-                NSApp.terminate(nil)
-            }
-            .keyboardShortcut("q", modifiers: .command)
-        }
+        Settings { EmptyView() }
     }
 }

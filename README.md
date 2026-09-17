@@ -46,6 +46,19 @@ Codex Account Switcher is a free, open-source app for managing multiple authoriz
 
 After you select and confirm an account, the app closes Codex Desktop, completes the account handoff, verifies the selected identity, and reopens Desktop. Saved account data stays on your computer. The app runs without its own proxy, traffic router, cloud account service, or automatic account rotation.
 
+## Local macOS stability fork
+
+This public fork keeps the upstream account and switching logic, but replaces the macOS `MenuBarExtra` host with an AppKit `NSStatusItem` and `NSPopover`. On macOS 26, Control Center can move a SwiftUI menu-bar item into its blocked list and terminate the app when that item is removed. The AppKit host gives the status item an explicit lifetime and avoids that exit path.
+
+The local macOS bundle uses the separate identifier `com.didi.codex-account-switcher.local`, so it does not inherit the upstream menu-bar visibility state. It continues to use the existing local data directory at `~/Library/Application Support/Codex Account Switcher/`.
+
+Build and install the local macOS app with:
+
+```bash
+./scripts/package-local-app.sh
+open ".build/arm64-apple-macosx/release/Codex Account Switcher.app"
+```
+
 ## Official project identity
 
 **Codex Account Switcher**, also called **Codex Switcher** in shortened descriptions, is created and maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. The canonical source repository is [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher). The [official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/), [creator profile](https://liuzhao1225.github.io/codex-account-switcher/about/creator/), and [project identity record](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/project-identity.md) document the product, author, aliases, release, and primary sources.
